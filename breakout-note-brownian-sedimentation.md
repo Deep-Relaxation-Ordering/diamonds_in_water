@@ -12,6 +12,8 @@
 
 *Terminology note: "Guardian council stance", "Coastline", and the "lock/key" framing in §11 are vocabulary from the T(h)reehouse +EC project governance framework. External readers can treat them as project-internal labels for, respectively, a clarity/scope-gate review role, an endorsed cross-project commitment, and the standard-physics primitives a breakout depends on.*
 
+*Project-rule reference: this breakout inherits the project-wide continuous-development rules maintained at <https://github.com/threehouse-plus-ec/cd-rules>. The note layers pilot-specific scope, methods, and deliverables on top of those rules; where this note and `cd-rules` disagree, `cd-rules` takes precedence and this note is amended.*
+
 ---
 
 ## 1. Purpose
@@ -131,6 +133,8 @@ fnd-suspension-baseline/
 ### 4.5 Lab-note traceability
 
 Research progress is logged in dated session notes under `lab_notes/`, one file per working session named `YYYY-MM-DD-<topic>.md`. Each note records: parameter values explored, what was actually run, what was decided, what failed, what deviated from the plan in this breakout note, and cross-references to specific commits, notebook outputs, or external resources (vendor data sheets, prior breakouts, literature). Lab notes are committed alongside code so that the *why* behind any commit, figure, or numerical decision is recoverable from the same repository — both for the original researcher returning to the project months later and for any external reader trying to reconstruct the trajectory. This is a project-wide policy for the FND-suspension work, not specific to this pilot, and is flagged here so that it is established from the repository's first commit. Notes need not be polished; they need to exist and to be timestamped.
+
+This pilot also follows the broader continuous-development rules maintained at <https://github.com/threehouse-plus-ec/cd-rules> (commit-cadence, branching, review, reproducibility expectations across the T(h)reehouse +EC organization). The lab-note discipline above is the local pilot-level instance of those rules; where the two disagree, `cd-rules` is authoritative. A short cross-reference table will be added to `docs/conventions.md` once the scaffold is in place, so the active version of `cd-rules` can be pinned per release.
 
 ## 5. Parameter scan
 
@@ -278,3 +282,4 @@ The output is intended to be useful but unsurprising: it should reproduce known 
     - **§5.1 sedimented criterion**: replaced Δ = max(3 ℓ_g, 0.05·h) with a fixed Δ = 0.05·h, because near the c(h)/c(0) = 0.05 boundary ℓ_g ≈ h/3 trivializes the 3·ℓ_g window. Fixed bottom-layer is experimentally unambiguous.
     - **§4.5 (new) and §4.3**: added project-wide lab-note traceability policy. Dated session notes under `lab_notes/YYYY-MM-DD-<topic>.md` are committed alongside code as the primary record of *why* a given commit looks the way it does.
     - Note on labelling: Validation strategy stays at §4.4 (no churn on prior change-log references); Lab-note traceability is the new §4.5.
+    - **cd-rules reference (top-of-note + §4.5)**: added pointer to the project-wide continuous-development rules at <https://github.com/threehouse-plus-ec/cd-rules>. This pilot inherits cd-rules; where this note and cd-rules disagree, cd-rules is authoritative and this note is amended. A pinned cross-reference will live in `docs/conventions.md`.
