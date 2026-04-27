@@ -81,9 +81,9 @@ These assumptions are explicit so that later breakouts can lift them one at a ti
 ## 4. Numerical approach
 
 ### 4.1 Methods
-- **Method A (analytical)**: closed-form evaluation of equilibrium quantities and characteristic timescales — gravitational scale height ℓ_g = k_B T / (m_eff·g), settling velocity v_sed, diffusivity D, equilibration time t_eq ~ min(h, ℓ_g)² / D — for every (r, T, h) cell. These are independent of t_obs. The barometric equilibrium distribution and Einstein–Smoluchowski relations are the textbook expressions evaluated. Time-dependent profiles at finite t_obs are *not* part of Method A; those are produced by Method C.
-- **Method B (stochastic ensemble)**: explicit time integration of the overdamped Langevin equation for N = 10⁴–10⁵ independent trajectories. Euler–Maruyama scheme with adaptive timestep dt = min(α · ℓ_g / v_sed, β · ℓ_g² / D), with α, β ~ 10⁻², chosen so that each step resolves both drift across the gravitational scale height and diffusion within it. In the diffusion-dominated regime where ℓ_g ≫ h (small particles), the diffusion bound is replaced by β · h² / D, since h becomes the limiting length scale.
-- **Method C (Smoluchowski / overdamped Fokker–Planck PDE)**: numerical solution of the corresponding 1D Smoluchowski equation on the interval [0, h] with no-flux boundaries. Acts both as a cross-check for Method B convergence and as the primary engine for time-dependent quantities across the full t_obs grid in §5.
+- **Method A (analytical)**: closed-form evaluation of equilibrium quantities and characteristic timescales — gravitational scale height ℓ_g = k_B T / (m_eff·g), settling velocity v_sed, diffusivity D, and an *order-of-magnitude* equilibration time t_eq ~ min(h, ℓ_g)² / D — for every (r, T, h) cell. The latter is a scaling estimate, not a spectral-gap relaxation time: in finite-depth drift–diffusion the actual relaxation time depends on the initial condition and on the lowest non-zero eigenvalue of the Smoluchowski operator. For strongly-sedimenting cells the experimentally meaningful timescale is the depletion/arrival time t_settle ~ h / v_sed rather than t_eq, and that quantity is reported alongside t_eq in Method A's per-cell output. The barometric equilibrium distribution and Einstein–Smoluchowski relations are the textbook expressions evaluated. Time-dependent profiles at finite t_obs are *not* part of Method A; those are produced by Method C.
+- **Method B (stochastic ensemble)**: explicit time integration of the overdamped Langevin equation for N = 10⁴–10⁵ independent trajectories. Euler–Maruyama scheme with adaptive timestep dt = min(α · ℓ_g / v_sed, β · ℓ_g² / D), with α, β ~ 10⁻², chosen so that each step resolves both drift across the gravitational scale height and diffusion within it. In the diffusion-dominated regime where ℓ_g ≫ h (small particles), the diffusion bound is replaced by β · h² / D, since h becomes the limiting length scale. **Feasibility envelope:** at the large-radius end ℓ_g shrinks rapidly (sub-nanometric for r ≳ a few µm), making dt prohibitively small. Method B is therefore restricted to the cells where this cost is acceptable — empirically r ≲ 1 µm — and the regime is sedimentation-dominated above that, where Method A (settling-time picture: c(z, t) → δ(z=0) for t ≫ h/v_sed) and Method C (which has no per-step stochastic-noise CFL constraint) are the operative tools. Cells outside Method B's feasibility envelope are explicitly tagged in the output table as "Method B not run".
+- **Method C (Smoluchowski / overdamped Fokker–Planck PDE)**: numerical solution of the corresponding 1D Smoluchowski equation on the interval [0, h] with no-flux boundaries. Acts both as a cross-check for Method B convergence (within Method B's feasibility envelope) and as the primary engine for time-dependent quantities across the full t_obs grid in §5.
 
 ### 4.2 Implementation
 - Language: Python 3.11+
@@ -122,7 +122,7 @@ fnd-suspension-baseline/
 ### 4.4 Validation strategy
 - Method B at long times must reproduce Method A equilibrium to within statistical noise (≤ 2 % deviation in mean height for N = 10⁵).
 - Method B and Method C must agree on time-dependent moments (mean, variance) to within numerical tolerance.
-- Pure Brownian limit (gravity off): MSD = 2·D·t recovered exactly by Method B.
+- Pure Brownian limit (gravity off): MSD = 2·D·t recovered by Method B in an unbounded-domain unit test, or equivalently in the bounded geometry for times short compared with the boundary-encounter time t_w ~ h² / (2·D), beyond which the MSD saturates at h²/12 for the uniform-on-[0,h] equilibrium.
 - Pure sedimentation limit (D → 0): for a uniform initial distribution on [0, h], the bottom population reaches 100 % at t = h / v_sed, with mean arrival time h / (2·v_sed). Particles starting at z₀ arrive at t(z₀) = z₀ / v_sed (Method B).
 - Einstein–Smoluchowski recovered: D·γ = k_B·T to machine precision in the parameter module.
 
@@ -139,18 +139,20 @@ Total grid: 30 × 7 × 5 × 6 = 6 300 cells. Method A delivers equilibrium quant
 
 ### 5.1 Regime classification (used in §6 deliverable 3)
 
-A cell (r, T, h, t_obs) is classified by the concentration profile attained at t_obs:
+The classification below assumes the canonical initial condition c(z, 0) = 1/h (uniform suspension after mixing, no settled layer at t = 0). Without this anchor "evolution toward equilibrium" is underdefined; alternative initial conditions (e.g. centrifuge-pre-pelleted samples) require their own classification run.
 
-- **homogeneous**: top-to-bottom ratio c(z=h) / c(z=0) ≥ 0.95 (≤ 5 % gradient — same threshold as deliverable 5);
+A cell (r, T, h, t_obs) is classified by the concentration profile c(z, t = t_obs) attained from that initial condition:
+
+- **homogeneous**: top-to-bottom ratio c(h) / c(0) ≥ 0.95 (≤ 5 % gradient — same threshold as deliverable 5);
 - **stratified**: 0.05 < c(h) / c(0) < 0.95 (an exponential-like profile with finite scale height);
-- **sedimented**: c(h) / c(0) ≤ 0.05 (essentially all particles within ~3 ℓ_g of the bottom).
+- **sedimented**: *both* c(h) / c(0) ≤ 0.05 *and* the cumulative mass within distance Δ = max(3 ℓ_g, 0.05·h) of the bottom is ≥ 0.95 (i.e. ∫₀^Δ c dz ≥ 0.95). The two-criterion form guards against the finite-time failure mode in which the top has depleted but most of the mass is still in transit through the bulk — a scenario where c(h) / c(0) is small but the system is not yet sedimented in the experimentally meaningful sense.
 
-The 5 % threshold is applied consistently in deliverable 3 (regime map) and deliverable 5 (design table), so that both products tell the same story.
+The 5 % top-to-bottom threshold is applied consistently in deliverable 3 (regime map) and deliverable 5 (design table), so that both products tell the same story.
 
 ## 6. Deliverables
 
 1. **Working repository** with all code, tests, configuration, and documentation as listed in Section 4.3. Public on GitHub under the T(h)reehouse +EC organization or equivalent.
-2. **Validation report** (notebook 01) demonstrating that all four checks in Section 4.4 pass.
+2. **Validation report** (notebook 01) demonstrating that all five checks in Section 4.4 pass.
 3. **Scientific output** (notebooks 02–04):
    - radius dependence of v_sed, D, ℓ_g at room temperature (figure: log–log plot of all three over r);
    - temperature dependence of equilibration time at fixed r (figure: t_eq vs T for representative radii);
@@ -176,7 +178,9 @@ e. **No optical-trapping or external forces.** If experiments later use optical 
 
 f. **No particle–wall adhesion.** Reflecting boundaries assume no sticking at the bottom (glass or polymer) or at the air–water interface (top). In real samples — particularly for hydrophobic surface chemistries, low-stability pH, or ionic-strength conditions favouring secondary-minimum capture — both walls can act as loss channels on timescales not necessarily long compared to the equilibration times in this study. Adhesion is *not* modelled here; the regime-map predictions assume full reflection. (Follow-up: "Particle–wall interaction breakout".)
 
-g. **Bulk-diamond density.** ρ_p = 3.51 g/cm³ is the bulk-diamond value. Real FNDs (HPHT-derived nanocrystals with surface graphitic carbon and irradiation-induced lattice defects) may be effectively 3.3–3.4 g/cm³ — a ~3–8 % reduction in (ρ_p − ρ_f) and hence in v_sed and m_eff·g. This sits below the 5 % regime-map threshold and is acceptable for a baseline; vendor-specific densities should be substituted when comparing against specific experimental data.
+g. **Bulk-diamond density.** ρ_p = 3.51 g/cm³ is the bulk-diamond value. Real FNDs (HPHT-derived nanocrystals with surface graphitic carbon and irradiation-induced lattice defects) may be effectively 3.3–3.4 g/cm³ — a ~3–8 % reduction in (ρ_p − ρ_f) and hence in v_sed and m_eff·g. The upper end of that range is *comparable to*, not below, the 5 % regime-map tolerance; the baseline remains acceptable for regime classification but vendor-specific densities should be substituted whenever the comparison is intended to be quantitative rather than categorical.
+
+h. **Single-radius parameterization.** A single value r is used throughout the model — for Stokes drag γ = 6 π η r, for diffusivity D = k_B T / γ, for buoyant mass m_eff ∝ r³, and for volume fraction. In real FNDs the relevant radii differ: γ and D are governed by the *hydrodynamic* radius r_H (core plus solvation shell plus any surface-graft thickness), while m_eff is governed by the *material* radius r_c of the dense diamond core. For r_c ≳ 30 nm the difference (~1 nm shell) is well below the 5 % regime-map threshold. For r_c ≲ 20 nm — the small end of the scan — r_H/r_c may exceed 1.2, splitting drag from buoyancy and producing a residual systematic that the single-r model does not capture. When fitting to data in this size range, drag-derived r (from DLS or single-particle tracking) should be used for D and γ, and core-derived r (from TEM) for m_eff; a follow-up breakout will treat this two-radius parameterization explicitly.
 
 ## 8. Out of scope (explicit deferrals)
 
@@ -252,3 +256,12 @@ The output is intended to be useful but unsurprising: it should reproduce known 
   - **Terminology pointer (top of note)**: brief gloss for "Guardian", "Coastline", "lock/key" framework vocabulary.
   - **Stop-conditions count (§10)**: corrected "all four validation checks" to "all five" to match the §4.4 list.
   - **Method A sub-grid dimensionality (§5)**: noted that ℓ_g, v_sed, and D depend on (r, T) only (a 2-D map) while t_eq additionally depends on h (a 3-D map within the same sub-grid).
+  - **Round-3 follow-ups** (added during PR review of this same v0.2):
+    - **§6 deliverable 2**: corrected residual "all four checks" → "all five" (the §10 fix had not propagated here).
+    - **§4.1 Method A (t_eq)**: relabeled as order-of-magnitude, with the spectral-gap caveat made explicit; t_settle ~ h/v_sed added as the experimentally meaningful timescale in strongly-sedimenting cells.
+    - **§4.1 Method B (feasibility envelope)**: stated the large-r infeasibility explicitly (sub-nm ℓ_g for r ≳ a few µm) and that Method B is restricted to r ≲ 1 µm, with sedimentation-dominated cells handled by Method A and Method C; out-of-envelope cells are tagged in the output.
+    - **§4.4 MSD check**: qualified MSD = 2 D t to "in an unbounded-domain unit test" (or in the bounded geometry only for t ≪ h²/2D), with the bounded-domain saturation at h²/12 made explicit.
+    - **§5.1 initial condition**: explicit canonical initial condition c(z, 0) = 1/h (uniform after mixing) added; without it the classification is underdefined.
+    - **§5.1 sedimented criterion**: strengthened from a single c(h)/c(0) ≤ 0.05 ratio to a two-criterion form requiring also that ≥ 95 % of mass lies within Δ = max(3 ℓ_g, 0.05·h) of the bottom — guards against finite-time profiles where the top has depleted but most mass is still in transit.
+    - **§7g (density)**: corrected wording from "below the 5 % threshold" to "comparable to" (a ~8 % buoyancy-contrast reduction is at, not under, the regime-map tolerance).
+    - **§7h (new)**: added single-radius limitation — r_H (drag, diffusion) and r_c (buoyant mass) may differ by a hydration/shell thickness that becomes non-trivial below ~20 nm; flagged for the small end of the scan, with a two-radius treatment deferred to a follow-up.
